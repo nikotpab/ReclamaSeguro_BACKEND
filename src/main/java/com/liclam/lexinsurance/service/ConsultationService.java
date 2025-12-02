@@ -7,18 +7,10 @@ import com.liclam.lexinsurance.repository.ConsultationRepository;
 import com.liclam.lexinsurance.repository.UserRepository;
 import com.liclam.lexinsurance.util.CryptoService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.UUID;
 
 @Service
 public class ConsultationService {
@@ -26,9 +18,6 @@ public class ConsultationService {
     @Autowired private ConsultationRepository consultationRepo;
     @Autowired private UserRepository userRepo;
     @Autowired private CryptoService cryptoService;
-
-    @Value("${app.storage.location}")
-    private String uploadDir;
 
     public Consultation createConsultation(ConsultationRequest req) {
         User user = userRepo.findById(req.getUserId())
@@ -51,32 +40,38 @@ public class ConsultationService {
         return consultationRepo.save(cons);
     }
 
-    public void saveSignature(Long consultationId, String base64Signature) throws IOException {
+    public void saveSignature(Long consultationId, String base64Signature) {
         Consultation consultation = consultationRepo.findById(consultationId)
                 .orElseThrow(() -> new RuntimeException("Consulta no encontrada"));
-
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
 
         String base64Image = base64Signature;
         if (base64Signature.contains(",")) {
             base64Image = base64Signature.split(",")[1];
         }
 
-        byte[] imageBytes = Base64.getDecoder().decode(base64Image);
-        String fileName = "firma_" + consultationId + "_" + UUID.randomUUID() + ".png";
-        File file = new File(uploadDir + File.separator + fileName);
-
-        try (FileOutputStream fos = new FileOutputStream(file)) {
-            fos.write(imageBytes);
-        }
+        byte[] rawImageBytes = Base64.getDecoder().decode(base64Image);
+        
+        byte[] compressedBytes = cryptoService.compress(rawImageBytes);
+        
+        byte[] encryptedBytes = cryptoService.encryptBytes(compressedBytes);
 
         consultation.setAuthorizationSigned(true);
-        consultation.setSignatureFilePath(file.getAbsolutePath());
+        consultation.setSignatureData(encryptedBytes);
         consultation.setSignatureTimestamp(LocalDateTime.now());
         
         consultationRepo.save(consultation);
+    }
+    
+    public String getSignatureImage(Long consultationId) {
+        Consultation consultation = consultationRepo.findById(consultationId)
+                .orElseThrow(() -> new RuntimeException("Consulta no encontrada"));
+        
+        if (consultation.getSignatureData() == null) return null;
+
+        byte[] decryptedBytes = cryptoService.decryptBytes(consultation.getSignatureData());
+        
+        byte[] decompressedBytes = cryptoService.decompress(decryptedBytes);
+        
+        return "data:image/png;base64," + Base64.getEncoder().encodeToString(decompressedBytes);
     }
 }

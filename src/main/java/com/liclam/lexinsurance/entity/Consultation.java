@@ -29,7 +29,10 @@ public class Consultation {
     private String kinship;
 
     private boolean authorizationSigned;
-    private String signatureFilePath;
+    
+    @Column(name = "signature_data")
+    private byte[] signatureData;
+
     private LocalDateTime signatureTimestamp;
 
     private String status; 
