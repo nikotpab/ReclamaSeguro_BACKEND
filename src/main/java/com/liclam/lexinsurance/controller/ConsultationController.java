@@ -4,15 +4,22 @@ import com.liclam.lexinsurance.dto.ConsultationRequest;
 import com.liclam.lexinsurance.dto.SignatureRequest;
 import com.liclam.lexinsurance.entity.Consultation;
 import com.liclam.lexinsurance.service.ConsultationService;
+
+import java.util.Map;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.liclam.lexinsurance.repository.ConsultationRepository;
 
 @RestController
 @RequestMapping("/api/consultations")
 public class ConsultationController {
 
     @Autowired private ConsultationService consultationService;
+    @Autowired private ConsultationRepository consultationRepository;
 
     @PostMapping("/create")
     public ResponseEntity<?> createConsultation(@RequestBody ConsultationRequest req) {
@@ -28,9 +35,54 @@ public class ConsultationController {
     public ResponseEntity<?> uploadSignature(@PathVariable Long id, @RequestBody SignatureRequest req) {
         try {
             consultationService.saveSignature(id, req.getBase64Signature());
-            return ResponseEntity.ok("Firma guardada correctamente.");
+            return ResponseEntity.ok(java.util.Collections.singletonMap("message", "Firma guardada correctamente."));
+            
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error guardando firma: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                .body(java.util.Collections.singletonMap("error", "Error guardando firma: " + e.getMessage()));
         }
     }
+
+    @PostMapping("/{id}/pay")
+    public ResponseEntity<?> processPayment(@PathVariable Long id) {
+    try {
+        consultationService.processPayment(id);
+        return ResponseEntity.ok(java.util.Collections.singletonMap("message", "Pago exitoso"));
+        } catch (Exception e) {
+        return ResponseEntity.internalServerError()
+            .body(java.util.Collections.singletonMap("error", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/upload")
+    public ResponseEntity<?> uploadDocument(@PathVariable Long id, 
+                                            @RequestParam("type") String type, 
+                                            @RequestParam("file") MultipartFile file) {
+        try {
+            consultationService.uploadDocument(id, type, file);
+            return ResponseEntity.ok(Map.of("message", "Documento subido."));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", "Error subiendo archivo"));
+        }
+    }
+
+    @PostMapping("/{id}/sign-mandate")
+    public ResponseEntity<?> signMandate(@PathVariable Long id, @RequestBody SignatureRequest req) {
+        try {
+            consultationService.saveMandateSignature(id, req.getBase64Signature());
+            return ResponseEntity.ok(Map.of("message", "Mandato firmado."));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+   @GetMapping("/user/{userId}")
+    public ResponseEntity<?> getUserConsultations(@PathVariable Long userId) {
+        try {
+            return ResponseEntity.ok(consultationRepository.findByUser_Id(userId));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Collections.singletonMap("error", e.getMessage()));
+        }
+    }
+
 }
