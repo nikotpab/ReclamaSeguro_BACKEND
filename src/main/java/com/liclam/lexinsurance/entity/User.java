@@ -15,11 +15,11 @@ public class User {
     private String email; 
 
     @Column(nullable = false)
-    private String passwordHash;
+    private String password;
 
     @Column(columnDefinition = "TEXT")
-    private String encryptedName;
+    private String name;
 
     @Column(columnDefinition = "TEXT")
-    private String encryptedPhone;
+    private String phoneNumber;
 }

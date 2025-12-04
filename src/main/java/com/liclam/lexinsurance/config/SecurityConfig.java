@@ -1,4 +1,4 @@
-package com.liclam.lexinsurance.config; // <--- VERIFICA ESTA LÍNEA
+package com.liclam.lexinsurance.config; 
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,20 +18,20 @@ import java.util.List;
 @EnableWebSecurity
 public class SecurityConfig {
 
-    @Bean
+   @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
-                // PERMITE SWAGGER Y AUTH SIN LOGIN
                 .requestMatchers(
-                    "/api/auth/**",
+                    "/",
+                    "/api/auth/**",          
+                    "/api/consultations/**",  
                     "/v3/api-docs/**",
                     "/swagger-ui/**",
                     "/swagger-ui.html"
                 ).permitAll()
-                // TODO LO DEMÁS REQUIERE LOGIN
                 .anyRequest().authenticated()
             );
         return http.build();

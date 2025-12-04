@@ -2,6 +2,8 @@ package com.liclam.lexinsurance.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,8 +34,26 @@ public class Consultation {
     
     @Column(name = "signature_data")
     private byte[] signatureData;
-
+    
     private LocalDateTime signatureTimestamp;
+
+    private boolean paymentApproved;
+    
+    private boolean mandateSigned;
+    
+    @Column(name = "mandate_signature_data")
+    private byte[] mandateSignatureData;
+    
+    private LocalDateTime mandateSignatureTimestamp;
+
+    private String docCedulaPath;
+    private String docDefuncionPath;
+    private String docParentescoPath;
+
+    private BigDecimal liquidationGrossValue;
+    private BigDecimal liquidationCommission;
+    private BigDecimal liquidationNetValue;
+    private LocalDate liquidationDate;
 
     private String status; 
     private LocalDateTime createdAt;
@@ -41,6 +61,8 @@ public class Consultation {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        status = "IN_PROGRESS";
+        if (status == null) {
+            status = "IN_PROGRESS";
+        }
     }
 }
