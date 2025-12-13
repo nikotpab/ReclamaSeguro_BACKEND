@@ -1,10 +1,19 @@
 package com.liclam.lexinsurance.entity;
 
-import jakarta.persistence.*;
-import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+import lombok.Data;
 
 @Entity
 @Data
@@ -18,14 +27,7 @@ public class Consultation {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    private String consultationType; 
-
-    @Column(columnDefinition = "TEXT")
-    private String encryptedDeceasedName;
-    
-    @Column(columnDefinition = "TEXT")
-    private String encryptedDocNumber;
-    
+    private String consultationType;     
     private String docType;
     private String deathDate;
     private String kinship;
@@ -57,6 +59,9 @@ public class Consultation {
 
     private String status; 
     private LocalDateTime createdAt;
+
+    private String deceasedName;
+    private String docNumber;
 
     @PrePersist
     protected void onCreate() {

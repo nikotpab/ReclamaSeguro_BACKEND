@@ -1,17 +1,5 @@
 package com.liclam.lexinsurance.service;
 
-import com.liclam.lexinsurance.dto.ConsultationRequest;
-import com.liclam.lexinsurance.entity.Consultation;
-import com.liclam.lexinsurance.entity.User;
-import com.liclam.lexinsurance.repository.ConsultationRepository;
-import com.liclam.lexinsurance.repository.UserRepository;
-import com.liclam.lexinsurance.util.CryptoService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,6 +7,22 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+
+import com.liclam.lexinsurance.dto.AdminConsultationDto;
+import com.liclam.lexinsurance.dto.AdminStatsDto;
+import com.liclam.lexinsurance.dto.ConsultationRequest;
+import com.liclam.lexinsurance.entity.Consultation;
+import com.liclam.lexinsurance.entity.User;
+import com.liclam.lexinsurance.repository.ConsultationRepository;
+import com.liclam.lexinsurance.repository.UserRepository;
+import com.liclam.lexinsurance.util.CryptoService;
 
 @Service
 public class ConsultationService {
@@ -30,7 +34,7 @@ public class ConsultationService {
     @Value("${app.storage.location}")
     private String uploadDir;
 
-    public Consultation createConsultation(ConsultationRequest req) {
+ public Consultation createConsultation(ConsultationRequest req) {
         User user = userRepo.findById(req.getUserId())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
@@ -41,13 +45,9 @@ public class ConsultationService {
         cons.setDeathDate(req.getDeathDate());
         cons.setKinship(req.getKinship());
         
-        if (req.getDeceasedName() != null) {
-            cons.setEncryptedDeceasedName(cryptoService.encrypt(req.getDeceasedName()));
-        }
-        if (req.getDocNumber() != null) {
-            cons.setEncryptedDocNumber(cryptoService.encrypt(req.getDocNumber()));
-        }
-
+        cons.setDeceasedName(req.getDeceasedName());
+        cons.setDocNumber(req.getDocNumber());
+        
         return consultationRepo.save(cons);
     }
 
@@ -66,7 +66,7 @@ public class ConsultationService {
     consultation.setStatus("PAID");
     consultationRepo.save(consultation);
     }
-    
+
     public void saveMandateSignature(Long consultationId, String base64Signature) {
         processSignature(consultationId, base64Signature, true);
     }
@@ -103,7 +103,7 @@ public class ConsultationService {
             Files.createDirectories(uploadPath);
         }
 
-        String fileName = consultationId + "_" + docType + "_" + UUID.randomUUID() + ".pdf"; // Asumiendo PDF o IMG
+        String fileName = consultationId + "_" + docType + "_" + UUID.randomUUID() + ".pdf"; 
         Path filePath = uploadPath.resolve(fileName);
         Files.copy(file.getInputStream(), filePath);
 
@@ -114,5 +114,89 @@ public class ConsultationService {
         }
 
         consultationRepo.save(consultation);
+    }
+
+    public AdminStatsDto getStats() {
+        AdminStatsDto stats = new AdminStatsDto();
+        stats.setTotalConsultas(consultationRepo.count());
+        stats.setPendientes(consultationRepo.findAll().stream().filter(c -> "IN_PROGRESS".equals(c.getStatus())).count());
+        stats.setEncontradas(consultationRepo.findAll().stream().filter(c -> "FOUND".equals(c.getStatus())).count());
+        stats.setFinalizadas(consultationRepo.findAll().stream().filter(c -> "PAID".equals(c.getStatus()) || "LIQUIDATION_READY".equals(c.getStatus())).count());
+        return stats;
+    }
+
+public Page<AdminConsultationDto> getAllConsultationsForAdmin(int page, int size) {
+        
+        Page<Object[]> rawPage = consultationRepo.findAdminResumen(PageRequest.of(page, size));
+        
+        return rawPage.map(row -> {
+            AdminConsultationDto dto = new AdminConsultationDto();
+            dto.setId((Long) row[0]);
+            dto.setUserName(row[1] != null ? (String) row[1] : "Eliminado");
+            
+            
+            dto.setDeceasedName((String) row[2]); 
+            dto.setDocNumber((String) row[3]);
+            
+            dto.setStatus((String) row[4]);
+            dto.setCreatedAt((LocalDateTime) row[5]);
+            return dto;
+        });
+    }
+
+  public AdminConsultationDto getConsultationDetail(Long id) {
+        Consultation c = consultationRepo.findById(id)
+            .orElseThrow(() -> new RuntimeException("Trámite no encontrado"));
+            
+        return convertToAdminDto(c);
+    }
+
+    public void updateStatus(Long id, String newStatus) {
+        Consultation c = consultationRepo.findById(id).orElseThrow();
+        c.setStatus(newStatus);
+        consultationRepo.save(c);
+    }
+
+    private AdminConsultationDto convertToAdminDto(Consultation c) {
+        AdminConsultationDto dto = new AdminConsultationDto();
+        dto.setId(c.getId());
+        
+        if (c.getUser() != null) {
+            dto.setUserName(c.getUser().getEmail());
+        } else {
+            dto.setUserName("Usuario Eliminado");
+        }
+
+        
+        dto.setDeceasedName(c.getDeceasedName()); 
+        dto.setDocNumber(c.getDocNumber());
+        
+
+        dto.setStatus(c.getStatus());
+        dto.setCreatedAt(c.getCreatedAt());
+
+        
+        
+        if (c.getSignatureData() != null) {
+            try {
+                
+                
+                
+                
+                
+                
+
+                
+                
+                byte[] compressed = cryptoService.decryptBytes(c.getSignatureData());
+                byte[] rawImage = cryptoService.decompress(compressed);
+                String base64 = java.util.Base64.getEncoder().encodeToString(rawImage);
+                dto.setSignatureBase64("data:image/png;base64," + base64);
+            } catch (Exception e) {
+                System.err.println("Error recovering signature: " + e.getMessage());
+            }
+        }
+
+        return dto;
     }
 }

@@ -1,13 +1,14 @@
 package com.liclam.lexinsurance.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+
 import com.liclam.lexinsurance.dto.LoginRequest;
 import com.liclam.lexinsurance.dto.RegisterRequest;
 import com.liclam.lexinsurance.entity.User;
 import com.liclam.lexinsurance.repository.UserRepository;
 import com.liclam.lexinsurance.util.CryptoService;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
 
 @Service
 public class AuthService {
@@ -18,19 +19,18 @@ public class AuthService {
 
     public User registerUser(RegisterRequest req) {
         if (userRepo.findByEmail(req.getEmail()).isPresent()) {
-            throw new RuntimeException("El correo ya está registrado");
+            throw new RuntimeException("El email ya está registrado");
         }
-
+        
         User user = new User();
+        user.setName(req.getFullName());
         user.setEmail(req.getEmail());
+        user.setPhoneNumber(req.getPhone());
+        user.setCedula(req.getCedula()); 
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         
-        user.setName(cryptoService.encrypt(req.getFullName()));
-        user.setPhoneNumber(cryptoService.encrypt(req.getPhone()));
-
         return userRepo.save(user);
     }
-
     public User login(LoginRequest req) {
         User user = userRepo.findByEmail(req.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
