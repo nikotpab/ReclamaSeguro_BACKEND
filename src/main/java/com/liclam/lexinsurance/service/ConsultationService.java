@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.liclam.lexinsurance.dto.AdminConsultationDto;
 import com.liclam.lexinsurance.dto.AdminStatsDto;
 import com.liclam.lexinsurance.dto.ConsultationRequest;
+import com.liclam.lexinsurance.dto.UpdateStatusRequest;
 import com.liclam.lexinsurance.entity.Consultation;
 import com.liclam.lexinsurance.entity.User;
 import com.liclam.lexinsurance.repository.ConsultationRepository;
@@ -151,14 +152,45 @@ public Page<AdminConsultationDto> getAllConsultationsForAdmin(int page, int size
         return convertToAdminDto(c);
     }
 
-    public void updateStatus(Long id, String newStatus) {
-        Consultation c = consultationRepo.findById(id).orElseThrow();
-        c.setStatus(newStatus);
+ public AdminStatsDto getAdminStats() {
+        AdminStatsDto stats = new AdminStatsDto();
+        stats.setTotalConsultas(consultationRepo.count());       
+        
+        stats.setPendientes(consultationRepo.countByStatus("IN_PROGRESS"));
+        stats.setEncontradas(consultationRepo.countByStatus("FOUND"));
+        
+        stats.setFinalizadas(consultationRepo.findAll().stream()
+            .filter(c -> "PAID".equals(c.getStatus()) || "LIQUIDATION_READY".equals(c.getStatus()))
+            .count());
+            
+        return stats;
+    }
+    
+    public void updateStatus(Long id, UpdateStatusRequest req) {
+        
+        Consultation c = consultationRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("Trámite no encontrado"));
+
+        
+        c.setStatus(req.getStatus());
+
+        
+        if ("LIQUIDATION_READY".equals(req.getStatus())) {
+            
+            
+            if (req.getGrossValue() != null) {
+                c.setLiquidationGrossValue(req.getGrossValue());
+                c.setLiquidationCommission(req.getCommission());
+                c.setLiquidationNetValue(req.getNetValue());
+                c.setLiquidationDate(java.time.LocalDateTime.now());
+            }
+        }
+
         consultationRepo.save(c);
     }
 
     private AdminConsultationDto convertToAdminDto(Consultation c) {
-        AdminConsultationDto dto = new AdminConsultationDto();
+      AdminConsultationDto dto = new AdminConsultationDto();
         dto.setId(c.getId());
         
         if (c.getUser() != null) {
@@ -167,26 +199,22 @@ public Page<AdminConsultationDto> getAllConsultationsForAdmin(int page, int size
             dto.setUserName("Usuario Eliminado");
         }
 
-        
         dto.setDeceasedName(c.getDeceasedName()); 
         dto.setDocNumber(c.getDocNumber());
-        
-
         dto.setStatus(c.getStatus());
         dto.setCreatedAt(c.getCreatedAt());
 
-        
+        // --- AGREGA ESTO AQUÍ (MAPEO DE LIQUIDACIÓN) ---
+        // Solo enviamos datos si el estado es liquidación lista o pagado
+        if ("LIQUIDATION_READY".equals(c.getStatus()) || "PAID".equals(c.getStatus())) {
+            dto.setLiquidationGrossValue(c.getLiquidationGrossValue());
+            dto.setLiquidationCommission(c.getLiquidationCommission());
+            dto.setLiquidationNetValue(c.getLiquidationNetValue());
+            dto.setLiquidationDate(c.getLiquidationDate());
+        }
         
         if (c.getSignatureData() != null) {
             try {
-                
-                
-                
-                
-                
-                
-
-                
                 
                 byte[] compressed = cryptoService.decryptBytes(c.getSignatureData());
                 byte[] rawImage = cryptoService.decompress(compressed);
