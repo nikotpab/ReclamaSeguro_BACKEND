@@ -1,6 +1,7 @@
 package com.liclam.lexinsurance.controller;
 
 import java.util.Map;
+import jakarta.validation.Valid;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -18,10 +19,11 @@ import com.liclam.lexinsurance.service.AuthService;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired private AuthService authService;
+    @Autowired
+    private AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest req) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         try {
             authService.registerInitial(req);
             return ResponseEntity.ok(Map.of("message", "Código enviado a tu correo."));
@@ -59,9 +61,9 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
-    
+
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         try {
             User user = authService.login(req);
             return ResponseEntity.ok(Map.of("id", user.getId(), "email", user.getEmail(), "fullName", user.getName()));
