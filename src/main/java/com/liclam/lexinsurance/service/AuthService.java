@@ -29,12 +29,27 @@ public class AuthService {
         if (userRepo.findByEmail(req.getEmail()).isPresent()) {
             throw new RuntimeException("El email ya está registrado");
         }
+        if (userRepo.findByCedula(req.getCedula()).isPresent()) {
+            throw new RuntimeException("La cédula ya está registrada");
+        }
+        if (userRepo.findByPhoneNumber(req.getPhone()).isPresent()) {
+            throw new RuntimeException("El teléfono ya está registrado");
+        }
         
         String code = generateCode();
         pendingUsers.put(req.getEmail(), req);
         verificationCodes.put(req.getEmail(), code);
-        emailService.sendEmail(req.getEmail(), "Verifica tu cuenta", 
-            "Tu código de verificación es: " + code);
+       emailService.sendEmail(req.getEmail(), 
+    "Código de verificación: " + code + " - Acceso Reclama Seguros", 
+    "Hola,\n\n" +
+    "Hemos recibido una solicitud de registro en Reclama Seguros.\n\n" +
+    "Para continuar, utiliza el siguiente código de seguridad:\n\n" +
+    code + "\n\n" +
+    "Este código expirará en 10 minutos.\n\n" +
+    "Si tú no has intentado ingresar, por favor ignora este mensaje.\n\n" +
+    "Atentamente,\n" +
+    "Equipo de Reclama Seguros"
+);
     }
 
     
