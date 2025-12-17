@@ -1,6 +1,8 @@
 package com.liclam.lexinsurance.service;
 
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,14 +18,36 @@ public class AuthService {
 
     @Autowired private UserRepository userRepo;
     @Autowired private PasswordEncoder passwordEncoder;
-    @Autowired private EmailService emailService; 
+    @Autowired private EmailService emailService;
 
     
-    public User registerUser(RegisterRequest req) {
+    private Map<String, RegisterRequest> pendingUsers = new ConcurrentHashMap<>();
+    private Map<String, String> verificationCodes = new ConcurrentHashMap<>();
+
+    
+    public void registerInitial(RegisterRequest req) {
         if (userRepo.findByEmail(req.getEmail()).isPresent()) {
             throw new RuntimeException("El email ya está registrado");
         }
         
+        String code = generateCode();
+        pendingUsers.put(req.getEmail(), req);
+        verificationCodes.put(req.getEmail(), code);
+        emailService.sendEmail(req.getEmail(), "Verifica tu cuenta", 
+            "Tu código de verificación es: " + code);
+    }
+
+    
+    public void verifyAndSave(String email, String code) {
+        String savedCode = verificationCodes.get(email);
+        
+        if (savedCode == null || !savedCode.equals(code)) {
+            throw new RuntimeException("Código incorrecto o expirado");
+        }
+
+        RegisterRequest req = pendingUsers.get(email);
+        if (req == null) throw new RuntimeException("Datos de registro no encontrados");
+
         User user = new User();
         user.setName(req.getFullName());
         user.setEmail(req.getEmail());
@@ -31,75 +55,51 @@ public class AuthService {
         user.setCedula(req.getCedula()); 
         user.setPassword(passwordEncoder.encode(req.getPassword()));
         
-        String code = generateCode();
-        user.setVerificationCode(code);
-        
-        userRepo.save(user);
+        userRepo.save(user); 
 
         
-        emailService.sendEmail(
-            user.getEmail(), 
-            "Verifica tu cuenta - ReclamaSeguro", 
-            "Tu código de verificación es: " + code
-        );
-
-        return user;
+        pendingUsers.remove(email);
+        verificationCodes.remove(email);
     }
 
     
     public void initiatePasswordRecovery(String email) {
-        User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("El correo no está registrado"));
+        if (userRepo.findByEmail(email).isEmpty()) {
+            throw new RuntimeException("Correo no registrado");
+        }
 
         String code = generateCode();
-        user.setVerificationCode(code); 
-        userRepo.save(user);
+        verificationCodes.put(email, code); 
 
-        emailService.sendEmail(
-            email, 
-            "Recuperación de Contraseña", 
-            "Usa este código para restablecer tu contraseña: " + code
-        );
+        emailService.sendEmail(email, "Recuperación de Contraseña", 
+            "Usa este código para cambiar tu contraseña: " + code);
     }
 
     
     public void resetPassword(String email, String code, String newPassword) {
-        User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        if (user.getVerificationCode() == null || !user.getVerificationCode().equals(code)) {
-            throw new RuntimeException("Código inválido o expirado");
-        }
-
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setVerificationCode(null); 
-        userRepo.save(user);
-    }
-
-    
-    private String generateCode() {
-        return UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-    }
-    
-    public void verifyUser(String email, String code) {
-        User user = userRepo.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-
-        if (user.getVerificationCode() == null) throw new RuntimeException("Usuario ya verificado");
-
-        if (user.getVerificationCode().equals(code)) {
-            user.setVerificationCode(null);
-            userRepo.save(user);
-        } else {
+        String savedCode = verificationCodes.get(email);
+        
+        if (savedCode == null || !savedCode.equals(code)) {
             throw new RuntimeException("Código incorrecto");
         }
+
+        User user = userRepo.findByEmail(email).get();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepo.save(user);
+        
+        verificationCodes.remove(email);
     }
 
     public User login(LoginRequest req) {
         User user = userRepo.findByEmail(req.getEmail())
                 .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        if (user.getVerificationCode() != null) throw new RuntimeException("Cuenta no verificada");
-        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) throw new RuntimeException("Contraseña incorrecta");
+        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+            throw new RuntimeException("Contraseña incorrecta");
+        }
         return user;
+    }
+
+    private String generateCode() {
+        return UUID.randomUUID().toString().substring(0, 6).toUpperCase();
     }
 }

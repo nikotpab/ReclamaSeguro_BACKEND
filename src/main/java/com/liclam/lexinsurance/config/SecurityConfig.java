@@ -5,8 +5,7 @@ import java.util.List;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity; //
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -21,22 +20,12 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // 1. Desactivar CSRF completamente (Crucial para APIs REST)
-            .csrf(AbstractHttpConfigurer::disable)
-            
-            // 2. Configurar CORS permisivo
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            
-            // 3. Autorizar TODO (Modo Desarrollo)
+            .cors(c -> c.configurationSource(corsConfigurationSource())) 
+            .csrf(c -> c.disable()) 
             .authorizeHttpRequests(auth -> auth
-                // Permitir OPTIONS explícitamente (Pre-flight request del navegador)
-                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                
-                // Permitir todo lo demás sin autenticación por ahora
-                // (Luego cerraremos esto cuando ya funcione el flujo)
-                .anyRequest().permitAll()
+                .requestMatchers("/api/auth/**", "/api/consultations/**", "/api/admin/**").permitAll()
+                .anyRequest().authenticated()
             );
-
         return http.build();
     }
 
@@ -47,22 +36,16 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration config = new CorsConfiguration();
         
-        // Permitir origen Angular
-        configuration.setAllowedOrigins(List.of("http://localhost:4200"));
+        config.setAllowedOriginPatterns(List.of("*")); 
         
-        // Permitir TODOS los métodos
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowCredentials(true);
         
-        // Permitir TODAS las cabeceras
-        configuration.setAllowedHeaders(List.of("*"));
-        
-        // Permitir credenciales
-        configuration.setAllowCredentials(true);
-
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration("/**", config);
         return source;
     }
 }

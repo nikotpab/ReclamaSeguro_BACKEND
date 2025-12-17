@@ -11,18 +11,18 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
-    public void sendEmail(String to, String subject, String body) {
+    public void sendEmail(String to, String subject, String content) {
         try {
-            SimpleMailMessage message = new SimpleMailMessage();
-            message.setFrom("tu_correo_real@gmail.com"); 
-            message.setTo(to);
-            message.setSubject(subject);
-            message.setText(body);
-            
-            mailSender.send(message);
-            System.out.println("Correo enviado a: " + to);
+            SimpleMailMessage email = new SimpleMailMessage();
+            email.setFrom("bogotacup@gmail.com"); 
+            email.setTo(to);
+            email.setSubject(subject);
+            email.setText(content);
+
+            mailSender.send(email);
+            System.out.println("Email enviado correctamente a: " + to);
         } catch (Exception e) {
-            System.err.println("Error enviando correo: " + e.getMessage());
+            System.err.println("Error al enviar el email: " + e.getMessage());
         }
     }
 }
