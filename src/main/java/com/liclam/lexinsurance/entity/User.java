@@ -16,18 +16,16 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String email; 
-
-    @Column(nullable = false)
+    private String name;
+    
+    @Column(unique = true)
+    private String email;
+    
+    private String phoneNumber;
+    private String cedula;
     private String password;
 
-    @Column(columnDefinition = "TEXT")
-    private String name;
-
-    @Column(columnDefinition = "TEXT")
-    private String phoneNumber;
-
-    @Column(nullable = false, unique = true)
-    private String cedula;
+    
+    @Column(name = "verification_code")
+    private String verificationCode;
 }

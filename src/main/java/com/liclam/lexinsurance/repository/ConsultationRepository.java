@@ -12,7 +12,7 @@ import com.liclam.lexinsurance.entity.Consultation;
 public interface ConsultationRepository extends JpaRepository<Consultation, Long> {
     
     List<Consultation> findByUser_Id(Long userId);
-
+    long countByStatus(String status);
     
 @Query("SELECT c.id, u.email, c.deceasedName, c.docNumber, c.status, c.createdAt " +
            "FROM Consultation c LEFT JOIN c.user u ORDER BY c.createdAt DESC")

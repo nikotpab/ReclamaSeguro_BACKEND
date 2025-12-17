@@ -1,7 +1,6 @@
 package com.liclam.lexinsurance.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
@@ -45,17 +44,24 @@ public class Consultation {
     
     @Column(name = "mandate_signature_data")
     private byte[] mandateSignatureData;
+
+    @Column(name = "liquidation_gross_value")
+    private BigDecimal liquidationGrossValue; 
+
+    @Column(name = "liquidation_commission")
+    private BigDecimal liquidationCommission; 
+
+    @Column(name = "liquidation_net_value")
+    private BigDecimal liquidationNetValue;   
+
+    @Column(name = "liquidation_date")
+    private LocalDateTime liquidationDate;
     
     private LocalDateTime mandateSignatureTimestamp;
 
     private String docCedulaPath;
     private String docDefuncionPath;
     private String docParentescoPath;
-
-    private BigDecimal liquidationGrossValue;
-    private BigDecimal liquidationCommission;
-    private BigDecimal liquidationNetValue;
-    private LocalDate liquidationDate;
 
     private String status; 
     private LocalDateTime createdAt;
